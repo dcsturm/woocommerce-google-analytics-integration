@@ -26,13 +26,19 @@ class WC_Google_Analytics extends WC_Integration {
 		$this->init_settings();
 
 		// Define user set variables
-		$this->ga_id 							= $this->get_option( 'ga_id' );
-		$this->ga_set_domain_name               = $this->get_option( 'ga_set_domain_name' );
-		$this->ga_standard_tracking_enabled 	= $this->get_option( 'ga_standard_tracking_enabled' );
-		$this->ga_support_display_advertising 	= $this->get_option( 'ga_support_display_advertising' );
-		$this->ga_use_universal_analytics 	= $this->get_option( 'ga_use_universal_analytics' );
-		$this->ga_ecommerce_tracking_enabled 	= $this->get_option( 'ga_ecommerce_tracking_enabled' );
-		$this->ga_event_tracking_enabled		= $this->get_option( 'ga_event_tracking_enabled' );
+		$_settings = array(
+			'ga_id',
+			'ga_set_domain_name',
+			'ga_standard_tracking_enabled',
+			'ga_support_display_advertising',
+			'ga_use_universal_analytics',
+			'ga_ecommerce_tracking_enabled',
+			'ga_event_tracking_enabled',
+			'ga_anonymizeIp_enabled',
+		);
+		foreach ($_settings as $var) {
+			$this->{$var} = $this->get_option($var);
+		}
 
 		// Actions
 		add_action( 'woocommerce_update_options_integration_google_analytics', array( $this, 'process_admin_options') );
@@ -97,9 +103,15 @@ class WC_Google_Analytics extends WC_Integration {
 			'ga_event_tracking_enabled' => array(
 				'label' 			=> __( 'Add event tracking code for add to cart actions', 'woocommerce' ),
 				'type' 				=> 'checkbox',
+				'checkboxgroup'		=> '',
+				'default' 			=> 'no'
+			),
+			'ga_anonymizeIp_enabled' => array(
+				'label'				=> __('Anonymize IP addresses', 'woocommerce'),
+				'type' 				=> 'checkbox',
 				'checkboxgroup'		=> 'end',
 				'default' 			=> 'no'
-			)
+			),
 		);
 
     } // End init_form_fields()
@@ -136,6 +148,7 @@ class WC_Google_Analytics extends WC_Integration {
 			else
 				$set_domain_name = 'auto';
 
+			$anonymizeIp = ( $this->ga_anonymizeIp_enabled ) ? "ga('set', 'anonymizeIp', true);" : '';
 
 			echo "<script>
 			(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -144,7 +157,7 @@ class WC_Google_Analytics extends WC_Integration {
 			})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
 
 			ga('create', '" . esc_js( $tracking_id ) . "', '" . $set_domain_name . "');
-			ga('set', 'dimension1', '" . $loggedin . "');
+			ga('set', 'dimension1', '" . $loggedin . "');" . $anonymizeIp . "
 			ga('send', 'pageview');
 
 			</script>";
@@ -162,12 +175,14 @@ class WC_Google_Analytics extends WC_Integration {
 			else
 				$set_domain_name = '';
 
+			$anonymizeIp = ( $this->ga_anonymizeIp_enabled ) ? "['_gat._anonymizeIp'], " : '';
+
 			echo "<script type='text/javascript'>
 
 				var _gaq = _gaq || [];
 				_gaq.push(
 					['_setAccount', '" . esc_js( $tracking_id ) . "'], " . $set_domain_name . "
-					['_setCustomVar', 1, 'logged-in', '" . $loggedin . "', 1],
+					['_setCustomVar', 1, 'logged-in', '" . $loggedin . "', 1], " . $anonymizeIp . "
 					['_trackPageview']
 				);
 
@@ -222,6 +237,8 @@ class WC_Google_Analytics extends WC_Integration {
 			else
 				$set_domain_name = 'auto';
 
+			$anonymizeIp = ( $this->ga_anonymizeIp_enabled ) ? "ga('set', 'anonymizeIp', true);" : '';
+
 			$code = "
 			(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
 			(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
@@ -229,7 +246,7 @@ class WC_Google_Analytics extends WC_Integration {
 			})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
 
 			ga('create', '" . esc_js( $tracking_id ) . "', '" . $set_domain_name . "');
-			ga('set', 'dimension1', '" . $loggedin . "');
+			ga('set', 'dimension1', '" . $loggedin . "');" . $anonymizeIp . "
 			ga('send', 'pageview');
 
 			ga('require', 'ecommerce', 'ecommerce.js');
@@ -287,12 +304,14 @@ class WC_Google_Analytics extends WC_Integration {
 			else
 				$set_domain_name = '';
 
+			$anonymizeIp = ( $this->ga_anonymizeIp_enabled ) ? "['_gat._anonymizeIp'], " : '';
+
 			$code = "
 				var _gaq = _gaq || [];
 
 				_gaq.push(
 					['_setAccount', '" . esc_js( $tracking_id ) . "'], " . $set_domain_name . "
-					['_setCustomVar', 1, 'logged-in', '" . esc_js( $loggedin ) . "', 1],
+					['_setCustomVar', 1, 'logged-in', '" . esc_js( $loggedin ) . "', 1], " . $anonymizeIp . "
 					['_trackPageview']
 				);
 
@@ -420,7 +439,7 @@ class WC_Google_Analytics extends WC_Integration {
 		}
 
 		$woocommerce->add_inline_js("
-			$('" . $selector . "').click(function() {
+			$('" . $selector . "').on('click.ga', function() {
 				" . sprintf( $track_event, $parameters['category'], $parameters['action'], $parameters['label'] ) . "
 			});
 		");
